@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>ADS-B ETA Tracker Options</title>
+    <link rel="stylesheet" href="options.css">
+  </head>
+  <body>
+    <main class="options-shell">
+      <header class="options-header">
+        <h1>ADS-B ETA Tracker</h1>
+        <p>Set the fixed destination used for distance and ETA calculations.</p>
+      </header>
+
+      <form id="destination-form" class="destination-form" novalidate>
+        <label class="field">
+          <span>Destination name</span>
+          <input id="destination-name" name="name" type="text" autocomplete="off" maxlength="80">
+        </label>
+
+        <label class="field">
+          <span>Latitude</span>
+          <input id="destination-latitude" name="latitude" type="number" min="-90" max="90" step="any" inputmode="decimal" required>
+        </label>
+
+        <label class="field">
+          <span>Longitude</span>
+          <input id="destination-longitude" name="longitude" type="number" min="-180" max="180" step="any" inputmode="decimal" required>
+        </label>
+
+        <div class="actions">
+          <button type="submit" class="primary-button">Save destination</button>
+          <button type="button" id="reset-button" class="secondary-button">Reset default</button>
+        </div>
+
+        <p id="form-message" class="form-message" role="status" aria-live="polite"></p>
+      </form>
+    </main>
+
+    <script src="shared-config.js"></script>
+    <script src="options.js"></script>
+  </body>
+</html>

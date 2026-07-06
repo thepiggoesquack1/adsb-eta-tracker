@@ -1,0 +1,41 @@
+{
+  "manifest_version": 3,
+  "name": "ADS-B ETA Tracker",
+  "version": "1.0.0",
+  "description": "Adds a live ETA panel to ADS-B Exchange selected aircraft.",
+  "permissions": [
+    "storage"
+  ],
+  "host_permissions": [
+    "https://globe.adsbexchange.com/*"
+  ],
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": false
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://globe.adsbexchange.com/*"
+      ],
+      "js": [
+        "shared-config.js",
+        "content.js"
+      ],
+      "css": [
+        "styles.css"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "page-reader.js"
+      ],
+      "matches": [
+        "https://globe.adsbexchange.com/*"
+      ]
+    }
+  ]
+}
