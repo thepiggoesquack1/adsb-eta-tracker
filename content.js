@@ -14,6 +14,12 @@
   const PANEL_ID = "adsb-eta-panel";
   const APPROACH_SEGMENT_NM = 15;
   const EARTH_RADIUS_NM = 3440.065;
+  const TAXI_DEFAULT_MINUTES = 3;
+  const TAXI_MIN_MINUTES = 1;
+  const TAXI_MAX_MINUTES = 8;
+  const TAXI_ASSUMED_SPEED_KT = 12;
+  const TAXI_MIN_USEFUL_SPEED_KT = 5;
+  const TAXI_MAX_USEFUL_SPEED_KT = 25;
 
   const CONFIG = globalThis.ADSB_ETA_TRACKER_CONFIG || {
     storageKeys: {
@@ -71,6 +77,7 @@
     TBM8: 120,
     TBM9: 120,
     TBM: 120,
+    BE40: 125,
     C500: 120,
     C501: 120,
     C510: 115,
@@ -120,6 +127,7 @@
     CL35: 135,
     CL60: 140,
     CL6T: 140,
+    BD700: 145,
     GLEX: 145,
     GL5T: 145,
     GL6T: 145,
@@ -163,16 +171,161 @@
     BCS3: 140
   });
 
+  const ICAO_TYPE_NAMES = Object.freeze({
+    C150: "Cessna 150",
+    C152: "Cessna 152",
+    C162: "Cessna 162 Skycatcher",
+    C172: "Cessna 172 Skyhawk",
+    C177: "Cessna 177 Cardinal",
+    C182: "Cessna 182 Skylane",
+    C185: "Cessna 185 Skywagon",
+    C206: "Cessna 206 Stationair",
+    C207: "Cessna 207 Skywagon",
+    C208: "Cessna 208 Caravan",
+    C210: "Cessna 210 Centurion",
+    C310: "Cessna 310",
+    C340: "Cessna 340",
+    C414: "Cessna 414 Chancellor",
+    C421: "Cessna 421 Golden Eagle",
+    C425: "Cessna 425 Conquest I",
+    C441: "Cessna 441 Conquest II",
+    P28A: "Piper PA-28 Cherokee/Archer",
+    PA28: "Piper PA-28 Cherokee/Archer",
+    PA32: "Piper PA-32 Cherokee Six/Saratoga",
+    PA34: "Piper PA-34 Seneca",
+    PA46: "Piper PA-46 Malibu/Meridian",
+    P46T: "Piper PA-46 Meridian/M500/M600",
+    SR20: "Cirrus SR20",
+    SR22: "Cirrus SR22",
+    BE33: "Beechcraft Bonanza",
+    BE35: "Beechcraft Bonanza",
+    BE36: "Beechcraft Bonanza",
+    BE55: "Beechcraft Baron",
+    BE58: "Beechcraft Baron",
+    BE9L: "Beechcraft King Air 90",
+    BE20: "Beechcraft King Air 200",
+    B200: "Beechcraft King Air 200",
+    B300: "Beechcraft King Air 350",
+    B350: "Beechcraft King Air 350",
+    BE40: "Beechcraft Beechjet",
+    E110: "Embraer EMB 110 Bandeirante",
+    E120: "Embraer EMB 120 Brasilia",
+    PC12: "Pilatus PC-12",
+    TBM7: "Daher/Socata TBM 700",
+    TBM8: "Daher/Socata TBM 850",
+    TBM9: "Daher/Socata TBM 900/910/930/940",
+    TBM: "Daher/Socata TBM",
+    C500: "Cessna Citation I",
+    C501: "Cessna Citation I/SP",
+    C510: "Cessna Citation Mustang",
+    C525: "Cessna CitationJet",
+    C25A: "Cessna Citation CJ2",
+    C25B: "Cessna Citation CJ3",
+    C25C: "Cessna Citation CJ4",
+    C550: "Cessna Citation II",
+    C551: "Cessna Citation II/SP",
+    C560: "Cessna Citation V/Ultra/Encore",
+    C56X: "Cessna Citation Excel/XLS",
+    C650: "Cessna Citation III/VI/VII",
+    C680: "Cessna Citation Sovereign",
+    C68A: "Cessna Citation Latitude",
+    C700: "Cessna Citation Longitude",
+    C750: "Cessna Citation X",
+    LJ23: "Learjet 23",
+    LJ24: "Learjet 24",
+    LJ25: "Learjet 25",
+    LJ31: "Learjet 31",
+    LJ35: "Learjet 35",
+    LJ40: "Learjet 40",
+    LJ45: "Learjet 45",
+    LJ55: "Learjet 55",
+    LJ60: "Learjet 60",
+    LJ70: "Learjet 70",
+    LJ75: "Learjet 75",
+    GLF2: "Gulfstream II",
+    GLF3: "Gulfstream III",
+    GLF4: "Gulfstream IV",
+    GLF5: "Gulfstream V/G500/G550",
+    GLF6: "Gulfstream G650",
+    GLF7: "Gulfstream G700",
+    G150: "Gulfstream G150",
+    G200: "Gulfstream G200",
+    G280: "Gulfstream G280",
+    FA10: "Dassault Falcon 10",
+    FA20: "Dassault Falcon 20",
+    FA50: "Dassault Falcon 50",
+    F2TH: "Dassault Falcon 2000",
+    F2LX: "Dassault Falcon 2000LX",
+    FA7X: "Dassault Falcon 7X",
+    FA8X: "Dassault Falcon 8X",
+    F900: "Dassault Falcon 900",
+    F9EX: "Dassault Falcon 900EX",
+    CL30: "Bombardier Challenger 300/350",
+    CL35: "Bombardier Challenger 350",
+    CL60: "Bombardier Challenger 600/601/604/605",
+    CL6T: "Bombardier Challenger 650",
+    BD700: "Bombardier Global Express",
+    GLEX: "Bombardier Global Express",
+    GL5T: "Bombardier Global 5000",
+    GL6T: "Bombardier Global 6000",
+    E50P: "Embraer Phenom 100",
+    E55P: "Embraer Phenom 300",
+    E135: "Embraer ERJ 135",
+    E145: "Embraer ERJ 145",
+    E545: "Embraer Legacy 450/Praetor 500",
+    E550: "Embraer Legacy 500/Praetor 600",
+    E170: "Embraer 170",
+    E75L: "Embraer 175",
+    E75S: "Embraer 175",
+    E190: "Embraer 190",
+    E195: "Embraer 195",
+    E290: "Embraer E190-E2",
+    E295: "Embraer E195-E2",
+    B731: "Boeing 737-100",
+    B732: "Boeing 737-200",
+    B733: "Boeing 737-300",
+    B734: "Boeing 737-400",
+    B735: "Boeing 737-500",
+    B736: "Boeing 737-600",
+    B737: "Boeing 737-700",
+    B738: "Boeing 737-800",
+    B739: "Boeing 737-900",
+    B37M: "Boeing 737 MAX 7",
+    B38M: "Boeing 737 MAX 8",
+    B39M: "Boeing 737 MAX 9",
+    A318: "Airbus A318",
+    A319: "Airbus A319",
+    A320: "Airbus A320",
+    A321: "Airbus A321",
+    A20N: "Airbus A320neo",
+    A21N: "Airbus A321neo",
+    CRJ1: "Bombardier CRJ100",
+    CRJ2: "Bombardier CRJ200",
+    CRJ7: "Bombardier CRJ700",
+    CRJ9: "Bombardier CRJ900",
+    CRJX: "Bombardier CRJ1000",
+    BCS1: "Airbus A220-100",
+    BCS3: "Airbus A220-300"
+  });
+
   const rows = [
     { key: "flight", label: "Flight" },
     { key: "registration", label: "Reg" },
     { key: "type", label: "Type" },
+    { key: "typeName", label: "Aircraft" },
     { key: "destination", label: "To" },
     { key: "distance", label: "Distance", grouped: true },
     { key: "eta", label: "ETA", grouped: true, emphasized: true },
     { key: "groundSpeed", label: "GS", grouped: true },
     { key: "altitude", label: "Altitude", grouped: true },
     { key: "verticalSpeed", label: "Vertical", grouped: true }
+  ];
+  const ETA_COLOR_CLASSES = [
+    "adsb-eta-eta-neutral",
+    "adsb-eta-eta-far",
+    "adsb-eta-eta-medium",
+    "adsb-eta-eta-close",
+    "adsb-eta-eta-imminent"
   ];
 
   const state = {
@@ -327,9 +480,11 @@
     ui.values.flight.textContent = formatText(state.plane.flight);
     ui.values.registration.textContent = formatText(state.plane.registration);
     ui.values.type.textContent = formatText(state.plane.icaoType);
+    ui.values.typeName.textContent = getAircraftTypeName(state.plane);
     ui.values.destination.textContent = formatText(state.destination.name);
     ui.values.distance.textContent = formatDistance(metrics.distanceNm);
     ui.values.eta.textContent = formatEta(metrics.etaMinutes);
+    setEtaColor(ui.values.eta, metrics.etaMinutes);
     ui.values.groundSpeed.textContent = formatKnots(state.plane.gs);
     ui.values.altitude.textContent = formatAltitude(state.plane.altitude);
     ui.values.verticalSpeed.textContent = formatVerticalSpeed(state.plane.vert_rate);
@@ -340,12 +495,15 @@
 
   function calculateAircraftMetrics(plane) {
     const position = readAircraftPosition(plane);
+    const onGround = isAircraftOnGround(plane);
 
     if (!position) {
       return {
         distanceNm: null,
         bearingDeg: null,
         approachSpeedKt: getApproachSpeedKt(plane.icaoType, plane.gs),
+        taxiMinutes: null,
+        onGround,
         etaMinutes: null
       };
     }
@@ -363,12 +521,15 @@
       state.destination.longitude
     );
     const approachSpeedKt = getApproachSpeedKt(plane.icaoType, plane.gs);
-    const etaMinutes = calculateEtaMinutes(distanceNm, plane.gs, approachSpeedKt);
+    const taxiMinutes = calculateTaxiMinutes(distanceNm, getGroundSpeedKt(plane), onGround);
+    const etaMinutes = calculateEtaMinutes(distanceNm, plane.gs, approachSpeedKt, onGround, taxiMinutes);
 
     return {
       distanceNm,
       bearingDeg,
       approachSpeedKt,
+      taxiMinutes,
+      onGround,
       etaMinutes
     };
   }
@@ -389,6 +550,30 @@
       latitude,
       longitude
     };
+  }
+
+  function isAircraftOnGround(plane) {
+    if (!plane || typeof plane !== "object") {
+      return false;
+    }
+
+    if (plane.onGround === true) {
+      return true;
+    }
+
+    return isGroundAltitude(plane.altitude) || isGroundAltitude(plane.alt_baro);
+  }
+
+  function isGroundAltitude(value) {
+    return typeof value === "string" && value.trim().toLowerCase() === "ground";
+  }
+
+  function getGroundSpeedKt(plane) {
+    if (!plane || typeof plane !== "object") {
+      return null;
+    }
+
+    return toFiniteNumber(plane.gs) ?? toFiniteNumber(plane.speed);
   }
 
   function haversineDistanceNm(fromLatitude, fromLongitude, toLatitude, toLongitude) {
@@ -418,12 +603,21 @@
     return normalizeDegrees(radiansToDegrees(Math.atan2(y, x)));
   }
 
-  function calculateEtaMinutes(distanceNm, groundSpeedKt, approachSpeedKt) {
+  function calculateEtaMinutes(distanceNm, groundSpeedKt, approachSpeedKt, onGround, taxiMinutes) {
     const normalizedDistance = toFiniteNumber(distanceNm);
     const cruiseSpeed = toFiniteNumber(groundSpeedKt);
     const approachSpeed = toFiniteNumber(approachSpeedKt);
+    const normalizedTaxiMinutes = toFiniteNumber(taxiMinutes);
 
-    if (normalizedDistance === null || normalizedDistance < 0 || approachSpeed === null || approachSpeed <= 0) {
+    if (normalizedDistance === null || normalizedDistance < 0) {
+      return null;
+    }
+
+    if (onGround) {
+      return normalizedTaxiMinutes;
+    }
+
+    if (approachSpeed === null || approachSpeed <= 0 || normalizedTaxiMinutes === null) {
       return null;
     }
 
@@ -437,7 +631,32 @@
     const cruiseHours = cruiseDistanceNm > 0 ? cruiseDistanceNm / cruiseSpeed : 0;
     const approachHours = approachDistanceNm / approachSpeed;
 
-    return (cruiseHours + approachHours) * 60;
+    return (cruiseHours + approachHours) * 60 + normalizedTaxiMinutes;
+  }
+
+  function calculateTaxiMinutes(distanceNm, groundSpeedKt, onGround) {
+    const distance = toFiniteNumber(distanceNm);
+    const groundSpeed = toFiniteNumber(groundSpeedKt);
+
+    if (!onGround) {
+      return TAXI_DEFAULT_MINUTES;
+    }
+
+    if (distance === null || distance < 0) {
+      return TAXI_DEFAULT_MINUTES;
+    }
+
+    if (distance <= 0.05) {
+      return 0;
+    }
+
+    const taxiSpeedKt =
+      groundSpeed === null || groundSpeed < TAXI_MIN_USEFUL_SPEED_KT
+        ? TAXI_ASSUMED_SPEED_KT
+        : Math.min(TAXI_MAX_USEFUL_SPEED_KT, Math.max(TAXI_MIN_USEFUL_SPEED_KT, groundSpeed));
+    const taxiMinutes = (distance / taxiSpeedKt) * 60;
+
+    return Math.min(TAXI_MAX_MINUTES, Math.max(TAXI_MIN_MINUTES, taxiMinutes));
   }
 
   function getApproachSpeedKt(icaoType, groundSpeedKt) {
@@ -535,6 +754,41 @@
     };
   }
 
+  function getAircraftTypeName(plane) {
+    if (!plane || typeof plane !== "object") {
+      return "N/A";
+    }
+
+    const normalizedType = normalizeAircraftType(plane.icaoType);
+
+    if (normalizedType && ICAO_TYPE_NAMES[normalizedType]) {
+      return ICAO_TYPE_NAMES[normalizedType];
+    }
+
+    return (
+      getPageProvidedTypeName(plane.typeLong) ||
+      getPageProvidedTypeName(plane.typeName) ||
+      getPageProvidedTypeName(plane.aircraftType) ||
+      getPageProvidedTypeName(plane.typeDescription) ||
+      getPageProvidedTypeName(plane.desc) ||
+      "N/A"
+    );
+  }
+
+  function getPageProvidedTypeName(value) {
+    if (typeof value !== "string") {
+      return null;
+    }
+
+    const cleaned = value.trim();
+
+    if (cleaned === "" || cleaned.length < 4 || /^[A-Z][0-9][A-Z]$/i.test(cleaned)) {
+      return null;
+    }
+
+    return cleaned;
+  }
+
   function formatText(value) {
     if (typeof value !== "string") {
       return "N/A";
@@ -576,12 +830,43 @@
     return `~${hours} hr ${minutesRemainder} min`;
   }
 
+  function setEtaColor(element, minutes) {
+    element.classList.remove(...ETA_COLOR_CLASSES);
+    element.classList.add(getEtaColorClass(minutes));
+  }
+
+  function getEtaColorClass(minutes) {
+    const etaMinutes = toFiniteNumber(minutes);
+
+    if (etaMinutes === null || etaMinutes < 0) {
+      return "adsb-eta-eta-neutral";
+    }
+
+    if (etaMinutes <= 5) {
+      return "adsb-eta-eta-imminent";
+    }
+
+    if (etaMinutes <= 10) {
+      return "adsb-eta-eta-close";
+    }
+
+    if (etaMinutes <= 20) {
+      return "adsb-eta-eta-medium";
+    }
+
+    return "adsb-eta-eta-far";
+  }
+
   function formatKnots(speedKt) {
     const speed = toFiniteNumber(speedKt);
     return speed === null ? "N/A" : `${Math.round(speed)} kt`;
   }
 
   function formatAltitude(altitude) {
+    if (isGroundAltitude(altitude)) {
+      return "Ground";
+    }
+
     const numericAltitude = toFiniteNumber(altitude);
 
     if (numericAltitude !== null) {

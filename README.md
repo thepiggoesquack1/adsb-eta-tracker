@@ -13,9 +13,10 @@ https://globe.adsbexchange.com/*
 - Flight
 - Registration
 - Aircraft type
+- Aircraft type name
 - Destination name
 - Distance to the configured destination
-- ETA
+- Color-coded ETA
 - Ground speed
 - Altitude
 - Vertical speed
@@ -33,6 +34,8 @@ N/A
 ```
 
 The extension does not infer whether an aircraft is inbound, landing, likely inbound, or assigned to any airport. It only displays calculations based on the selected aircraft's current ADS-B Exchange data and the configured destination coordinates.
+
+When ADS-B Exchange multiselect mode is enabled, ADS-B ETA Tracker follows the current active aircraft, not the entire multiselection list.
 
 ## Files
 
@@ -94,10 +97,11 @@ The extension intentionally does not use inline JavaScript because ADS-B Exchang
 2. `content.js` injects `page-reader.js` using `chrome.runtime.getURL`.
 3. `page-reader.js` runs in the ADS-B Exchange page context.
 4. `page-reader.js` reads `selectedPlanes()` and falls back to `SelPlanes`.
-5. `page-reader.js` sends a sanitized aircraft snapshot with `window.postMessage`.
-6. `content.js` validates the message source and origin.
-7. `content.js` calculates distance, ETA, and formatted values.
-8. `content.js` renders the floating panel.
+5. In multiselect mode, `page-reader.js` prefers ADS-B Exchange's current `SelectedPlane`/`sp` page-scope value, then falls back to the selected-plane list.
+6. `page-reader.js` sends a sanitized aircraft snapshot with `window.postMessage`.
+7. `content.js` validates the message source and origin.
+8. `content.js` calculates distance, ETA, aircraft type name, and formatted values.
+9. `content.js` renders the floating panel.
 
 The reader updates once per second.
 
@@ -127,21 +131,47 @@ position: [longitude, latitude]
 
 ## ETA Calculation
 
-ETA is calculated as two segments:
+ETA is calculated as three segments:
 
 1. Cruise segment: current distance outside 15 NM, flown at current ADS-B ground speed.
 2. Approach segment: final 15 NM, flown at an estimated aircraft-specific approach speed.
+3. Taxi segment: estimated ground/taxi time to the configured destination.
 
-This avoids the common problem where a fast enroute ground speed makes the final arrival estimate too optimistic.
+This avoids the common problem where a fast enroute ground speed makes the final arrival estimate too optimistic, and it keeps the estimate useful after ADS-B Exchange reports the aircraft on the ground.
 
 Formula:
 
 ```text
 ETA = ((max(distanceNm - 15, 0) / currentGroundSpeedKt)
     + (min(distanceNm, 15) / approachSpeedKt)) * 60
+    + taxiMinutes
 ```
 
+For airborne aircraft, `taxiMinutes` defaults to 3 minutes. Once ADS-B Exchange reports the aircraft on ground, ADS-B ETA Tracker switches to a taxi-only estimate using remaining distance to the configured destination. It uses current ground speed when that speed is useful; otherwise it assumes 12 kt taxi speed. Taxi estimates are clamped to 1-8 minutes, with a 3 minute fallback when position is unavailable.
+
 If position or required speed values are unavailable, ETA shows `N/A`.
+
+ETA color thresholds:
+
+```text
+More than 20 min    green
+11-20 min           yellow
+6-10 min            orange
+0-5 min             red
+Unavailable         neutral
+```
+
+## Aircraft Type Names
+
+The panel shows the ICAO aircraft type code and a human-readable aircraft name when available. Built-in mappings live in `ICAO_TYPE_NAMES` in `content.js`.
+
+Example:
+
+```js
+BE40: "Beechcraft Beechjet"
+```
+
+If a type code is not in the built-in map, the extension attempts to use aircraft type text already exposed by ADS-B Exchange.
 
 ## Adding Aircraft Types
 

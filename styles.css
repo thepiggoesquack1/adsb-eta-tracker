@@ -1,10 +1,10 @@
 #adsb-eta-panel {
   position: fixed;
-  top: 72px;
-  right: 16px;
+  top: 68px;
+  right: 12px;
   z-index: 2147483647;
   box-sizing: border-box;
-  width: min(280px, calc(100vw - 32px));
+  width: min(244px, calc(100vw - 24px));
   overflow: hidden;
   color: #e8edf2;
   background: rgba(18, 21, 25, 0.94);
@@ -12,8 +12,8 @@
   border-radius: 8px;
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.42);
   font-family: Arial, Helvetica, sans-serif;
-  font-size: 13px;
-  line-height: 1.35;
+  font-size: 12px;
+  line-height: 1.28;
   letter-spacing: 0;
   backdrop-filter: blur(8px);
   -webkit-font-smoothing: antialiased;
@@ -25,40 +25,39 @@
 }
 
 .adsb-eta-header {
-  padding: 10px 12px;
+  padding: 8px 10px;
   color: #ffffff;
   background: rgba(255, 255, 255, 0.06);
   border-bottom: 1px solid rgba(255, 255, 255, 0.12);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 700;
 }
 
 .adsb-eta-message {
-  padding: 14px 12px;
+  padding: 12px 10px;
   color: #b9c4cf;
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .adsb-eta-list {
   display: block;
   margin: 0;
-  padding: 8px 12px 12px;
+  padding: 7px 10px 10px;
 }
 
 .adsb-eta-row {
   display: grid;
-  grid-template-columns: 96px minmax(0, 1fr);
-  gap: 10px;
+  grid-template-columns: 74px minmax(0, 1fr);
+  gap: 8px;
   align-items: baseline;
-  min-height: 22px;
+  min-height: 19px;
 }
 
 .adsb-eta-row-grouped {
-  margin-top: 8px;
+  margin-top: 6px;
 }
 
 .adsb-eta-row-emphasized .adsb-eta-value {
-  color: #ffffff;
   font-weight: 700;
 }
 
@@ -78,18 +77,38 @@
   text-align: right;
 }
 
+#adsb-eta-panel .adsb-eta-value.adsb-eta-eta-far {
+  color: #9fd58b;
+}
+
+#adsb-eta-panel .adsb-eta-value.adsb-eta-eta-medium {
+  color: #f0d36a;
+}
+
+#adsb-eta-panel .adsb-eta-value.adsb-eta-eta-close {
+  color: #ffad5c;
+}
+
+#adsb-eta-panel .adsb-eta-value.adsb-eta-eta-imminent {
+  color: #ff756f;
+}
+
+#adsb-eta-panel .adsb-eta-value.adsb-eta-eta-neutral {
+  color: #e8edf2;
+}
+
 .adsb-eta-hidden {
   display: none !important;
 }
 
 @media (max-width: 520px) {
   #adsb-eta-panel {
-    top: 58px;
-    right: 10px;
-    width: min(260px, calc(100vw - 20px));
+    top: 54px;
+    right: 8px;
+    width: min(236px, calc(100vw - 16px));
   }
 
   .adsb-eta-row {
-    grid-template-columns: 82px minmax(0, 1fr);
+    grid-template-columns: 70px minmax(0, 1fr);
   }
 }

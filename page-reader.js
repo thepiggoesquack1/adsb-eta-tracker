@@ -36,6 +36,25 @@
     return cleaned === "" ? null : cleaned;
   }
 
+  function toBoolean(value) {
+    if (typeof value === "boolean") {
+      return value;
+    }
+
+    if (typeof value === "string") {
+      const cleaned = value.trim().toLowerCase();
+      if (cleaned === "true") {
+        return true;
+      }
+
+      if (cleaned === "false") {
+        return false;
+      }
+    }
+
+    return null;
+  }
+
   function readAltitude(value) {
     const numericAltitude = toFiniteNumber(value);
     if (numericAltitude !== null) {
@@ -60,19 +79,42 @@
     return [longitude, latitude];
   }
 
+  function isGroundAltitude(value) {
+    return typeof value === "string" && value.trim().toLowerCase() === "ground";
+  }
+
+  function readOnGround(plane) {
+    const explicitOnGround = toBoolean(plane.onGround);
+    if (explicitOnGround !== null) {
+      return explicitOnGround;
+    }
+
+    return isGroundAltitude(plane.altitude) || isGroundAltitude(plane.alt_baro);
+  }
+
   function normalizePlane(plane) {
     if (!plane || typeof plane !== "object") {
       return null;
     }
 
     return {
+      icao: toCleanString(plane.icao),
       flight: toCleanString(plane.flight),
       registration: toCleanString(plane.registration),
       icaoType: toCleanString(plane.icaoType),
+      typeName: toCleanString(plane.typeName),
+      typeLong: toCleanString(plane.typeLong),
+      typeDescription: toCleanString(plane.typeDescription),
+      aircraftType: toCleanString(plane.aircraftType),
+      desc: toCleanString(plane.desc),
       position: readPosition(plane.position),
       gs: toFiniteNumber(plane.gs),
+      speed: toFiniteNumber(plane.speed),
       track: toFiniteNumber(plane.track),
+      onGround: readOnGround(plane),
       altitude: readAltitude(plane.altitude),
+      alt_baro: readAltitude(plane.alt_baro),
+      alt_geom: readAltitude(plane.alt_geom),
       vert_rate: toFiniteNumber(plane.vert_rate)
     };
   }
@@ -86,16 +128,56 @@
     return Array.isArray(planes) ? planes : null;
   }
 
+  function currentPlaneFromGlobalSelection() {
+    try {
+      if (typeof SelectedPlane !== "undefined" && SelectedPlane) {
+        return SelectedPlane;
+      }
+    } catch (error) {
+      // Ignore and continue to the next page-global fallback.
+    }
+
+    try {
+      if (typeof sp !== "undefined" && sp) {
+        return sp;
+      }
+    } catch (error) {
+      // Ignore and continue to selected-plane collections.
+    }
+
+    return null;
+  }
+
   function selectedPlanesFromGlobal() {
-    const selectedPlanes = window.SelPlanes;
+    let selectedPlanes = window.SelPlanes;
+
+    try {
+      if (!selectedPlanes && typeof SelPlanes !== "undefined") {
+        selectedPlanes = SelPlanes;
+      }
+    } catch (error) {
+      // Keep the window-property value if the lexical global is unavailable.
+    }
 
     if (!selectedPlanes || typeof selectedPlanes !== "object") {
       return [];
     }
 
-    return Object.keys(selectedPlanes)
-      .map((key) => selectedPlanes[key])
-      .filter((plane) => plane && plane.selected);
+    if (Array.isArray(selectedPlanes)) {
+      return selectedPlanes.filter((plane) => plane && plane.selected);
+    }
+
+    return Object.keys(selectedPlanes).map((key) => selectedPlanes[key]).filter((plane) => plane && plane.selected);
+  }
+
+  function readCurrentPlane() {
+    const currentPlane = currentPlaneFromGlobalSelection();
+    if (currentPlane) {
+      return currentPlane;
+    }
+
+    const selectedPlanes = readSelectedPlanes();
+    return selectedPlanes.length > 0 ? selectedPlanes[0] : null;
   }
 
   function readSelectedPlanes() {
@@ -118,13 +200,14 @@
 
   function postSelection() {
     const selected = readSelectedPlanes();
-    const plane = selected.length > 0 ? normalizePlane(selected[0]) : null;
+    const plane = normalizePlane(readCurrentPlane());
 
     window.postMessage(
       {
         source: CHANNEL,
         type: MESSAGE_TYPE_SELECTION,
         selected: Boolean(plane),
+        selectedCount: selected.length,
         plane,
         timestamp: Date.now()
       },
